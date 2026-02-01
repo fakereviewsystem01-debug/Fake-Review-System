@@ -125,7 +125,7 @@ def calculate_true_rating(reviews, results):
 def home():
     return jsonify({"status": "Backend running"})
 
-# ---------- LOCAL ML PIPELINE ---------- #
+# ---------- LOCAL ML PIPELINE (FIXED) ---------- #
 
 @app.route("/predict", methods=["POST"])
 def predict_local():
@@ -157,12 +157,21 @@ def predict_local():
         final_label = "Fake" if (bert_pred == 1 and lr_pred == 1) else "Genuine"
         final_conf = round((bert_conf + lr_conf) / 2, 2)
 
+        # ✅ AI EXPLANATION ADDED HERE
+        try:
+            ai = ai_analyze_review(text)
+            sentiment = ai.get("sentiment", "Neutral")
+            reason = ai.get("reason", "AI explanation unavailable")
+        except Exception:
+            sentiment = "Neutral"
+            reason = "AI explanation failed"
+
         results.append({
             "reviewId": ids[i],
             "label": final_label,
             "confidenceScore": final_conf,
-            "sentiment": "Neutral",
-            "reason": "Local ML decision"
+            "sentiment": sentiment,
+            "reason": reason
         })
 
     true_rating = calculate_true_rating(reviews, results)
@@ -229,52 +238,11 @@ def predict_ai():
         "trueRating": true_rating
     })
 
-# ---------- AUDIT HISTORY (MATCHES REACT UI) ---------- #
-
-@app.route("/audits", methods=["GET"])
-def get_audits():
-    audits = load_audits()
-    formatted = []
-
-    for a in audits:
-        reviews = a["reviews"]
-        results = a["results"]
-
-        fake_count = sum(1 for r in results if r["label"] == "Fake")
-        genuine_count = sum(1 for r in results if r["label"] == "Genuine")
-
-        original_avg = (
-            sum(r["rating"] for r in reviews) / len(reviews)
-            if reviews else 0
-        )
-
-        trust_score = round(
-            (genuine_count / len(reviews)) * 100, 1
-        ) if reviews else 0
-
-        formatted.append({
-            "id": a["auditId"],
-            "projectName": "Fake Review Detection",
-            "engine": "REVIEW SHIELD" if a["mode"] == "ai" else "LOCAL",
-            "date": a["timestamp"],
-            "reviewCount": len(reviews),
-            "fakeCount": fake_count,
-            "trustScore": trust_score,
-            "summary": {
-                "genuineCount": genuine_count,
-                "originalAvgRating": round(original_avg, 1),
-                "trueAvgRating": a["trueRating"]
-            }
-        })
-
-    return jsonify(formatted)
-
 # ---------------- RUN ---------------- #
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
     if not os.path.exists(AUDIT_FILE):
         with open(AUDIT_FILE, "w") as f:
             json.dump([], f)
 
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)
