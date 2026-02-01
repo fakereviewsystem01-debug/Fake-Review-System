@@ -8,3 +8,4 @@ transformers
 python-dotenv
 openai
 gunicorn
+requests
