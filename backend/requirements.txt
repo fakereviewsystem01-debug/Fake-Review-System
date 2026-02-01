@@ -7,3 +7,4 @@ torch
 transformers
 python-dotenv
 openai
+gunicorn

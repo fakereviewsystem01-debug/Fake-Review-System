@@ -272,6 +272,7 @@ def get_audits():
 # ---------------- RUN ---------------- #
 
 if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
     if not os.path.exists(AUDIT_FILE):
         with open(AUDIT_FILE, "w") as f:
             json.dump([], f)
