@@ -6,7 +6,7 @@ import {
   AnalyzeResponse
 } from "../types";
 
-const API_URL = "http://localhost:5000";
+const API_URL = "https://fake-review-system.onrender.com";
 
 /**
  * Analyze reviews (LOCAL or AI)
