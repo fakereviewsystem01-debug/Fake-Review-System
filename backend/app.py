@@ -52,8 +52,8 @@ def save_audit(audit):
 tfidf = joblib.load("tfidf_vectorizer.pkl")
 logistic = joblib.load("logistic_model.pkl")
 
-tokenizer = BertTokenizer.from_pretrained("bert")
-bert_model = BertForSequenceClassification.from_pretrained("bert")
+tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+bert_model = BertForSequenceClassification.from_pretrained("bert-base-uncased")
 bert_model.eval()
 
 # ---------------- AI HELPERS ---------------- #
@@ -125,7 +125,7 @@ def calculate_true_rating(reviews, results):
 def home():
     return jsonify({"status": "Backend running"})
 
-# ---------- LOCAL ML PIPELINE (FIXED) ---------- #
+# ---------- FIXED LOCAL ML PIPELINE ---------- #
 
 @app.route("/predict", methods=["POST"])
 def predict_local():
@@ -142,22 +142,23 @@ def predict_local():
     results = []
 
     for i, text in enumerate(texts):
+        # -------- BERT (confidence only) -------- #
         inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
 
         with torch.no_grad():
             outputs = bert_model(**inputs)
             probs = torch.softmax(outputs.logits, dim=1)
 
-        bert_pred = torch.argmax(probs).item()
         bert_conf = torch.max(probs).item() * 100
 
+        # -------- Logistic (main decision) -------- #
         lr_pred = lr_preds[i]
         lr_conf = max(lr_probs[i]) * 100
 
-        final_label = "Fake" if (bert_pred == 1 and lr_pred == 1) else "Genuine"
-        final_conf = round((bert_conf + lr_conf) / 2, 2)
+        final_label = "Fake" if lr_pred == 1 else "Genuine"
+        final_conf = round((lr_conf * 0.8 + bert_conf * 0.2), 2)
 
-        # ✅ AI EXPLANATION ADDED HERE
+        # -------- AI Explanation -------- #
         try:
             ai = ai_analyze_review(text)
             sentiment = ai.get("sentiment", "Neutral")
