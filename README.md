@@ -1,6 +1,6 @@
-# Fake Review Detection System
+# Fake Review Detection Agent
 
-A local-first AI system for detecting fake reviews using:
+A local-first AI Detection Agent for detecting fake reviews using:
 - TF-IDF + Logistic Regression
 - BERT (local)
 - GPT-4.1 (GitHub-hosted) for explanations
