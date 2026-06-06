@@ -56,7 +56,7 @@ const Auth: React.FC<Props> = ({ onLogin }) => {
           </h2>
 
           <p className="text-slate-400 text-center text-sm sm:text-base mb-6 sm:mb-8">
-            Fake Review System
+            Fake Review Detection Agent
           </p>
 
           {/* Error */}
