@@ -52,8 +52,8 @@ def save_audit(audit):
 tfidf = joblib.load("tfidf_vectorizer.pkl")
 logistic = joblib.load("logistic_model.pkl")
 
-tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
-bert_model = BertForSequenceClassification.from_pretrained("bert-base-uncased")
+tokenizer = BertTokenizer.from_pretrained("bert")
+bert_model = BertForSequenceClassification.from_pretrained("bert")
 bert_model.eval()
 
 # ---------------- AI HELPERS ---------------- #
@@ -125,7 +125,7 @@ def calculate_true_rating(reviews, results):
 def home():
     return jsonify({"status": "Backend running"})
 
-# ---------- FIXED LOCAL ML PIPELINE ---------- #
+# ---------- LOCAL ML PIPELINE ---------- #
 
 @app.route("/predict", methods=["POST"])
 def predict_local():
@@ -142,37 +142,27 @@ def predict_local():
     results = []
 
     for i, text in enumerate(texts):
-        # -------- BERT (confidence only) -------- #
         inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
 
         with torch.no_grad():
             outputs = bert_model(**inputs)
             probs = torch.softmax(outputs.logits, dim=1)
 
+        bert_pred = torch.argmax(probs).item()
         bert_conf = torch.max(probs).item() * 100
 
-        # -------- Logistic (main decision) -------- #
         lr_pred = lr_preds[i]
         lr_conf = max(lr_probs[i]) * 100
 
-        final_label = "Fake" if lr_pred == 1 else "Genuine"
-        final_conf = round((lr_conf * 0.8 + bert_conf * 0.2), 2)
-
-        # -------- AI Explanation -------- #
-        try:
-            ai = ai_analyze_review(text)
-            sentiment = ai.get("sentiment", "Neutral")
-            reason = ai.get("reason", "AI explanation unavailable")
-        except Exception:
-            sentiment = "Neutral"
-            reason = "AI explanation failed"
+        final_label = "Fake" if (bert_pred == 1 and lr_pred == 1) else "Genuine"
+        final_conf = round((bert_conf + lr_conf) / 2, 2)
 
         results.append({
             "reviewId": ids[i],
             "label": final_label,
             "confidenceScore": final_conf,
-            "sentiment": sentiment,
-            "reason": reason
+            "sentiment": "Neutral",
+            "reason": "Local ML decision"
         })
 
     true_rating = calculate_true_rating(reviews, results)
@@ -239,11 +229,52 @@ def predict_ai():
         "trueRating": true_rating
     })
 
+# ---------- AUDIT HISTORY (MATCHES REACT UI) ---------- #
+
+@app.route("/audits", methods=["GET"])
+def get_audits():
+    audits = load_audits()
+    formatted = []
+
+    for a in audits:
+        reviews = a["reviews"]
+        results = a["results"]
+
+        fake_count = sum(1 for r in results if r["label"] == "Fake")
+        genuine_count = sum(1 for r in results if r["label"] == "Genuine")
+
+        original_avg = (
+            sum(r["rating"] for r in reviews) / len(reviews)
+            if reviews else 0
+        )
+
+        trust_score = round(
+            (genuine_count / len(reviews)) * 100, 1
+        ) if reviews else 0
+
+        formatted.append({
+            "id": a["auditId"],
+            "projectName": "Fake Review Detection",
+            "engine": "REVIEW SHIELD" if a["mode"] == "ai" else "LOCAL",
+            "date": a["timestamp"],
+            "reviewCount": len(reviews),
+            "fakeCount": fake_count,
+            "trustScore": trust_score,
+            "summary": {
+                "genuineCount": genuine_count,
+                "originalAvgRating": round(original_avg, 1),
+                "trueAvgRating": a["trueRating"]
+            }
+        })
+
+    return jsonify(formatted)
+
 # ---------------- RUN ---------------- #
 
 if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
     if not os.path.exists(AUDIT_FILE):
         with open(AUDIT_FILE, "w") as f:
             json.dump([], f)
 
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(debug=True)
