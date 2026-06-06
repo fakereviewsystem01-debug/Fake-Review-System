@@ -158,7 +158,7 @@ const App: React.FC = () => {
       <aside className="w-full md:w-64 bg-slate-900 border-r border-slate-800 flex flex-col fixed md:relative z-10 h-auto min-h-screen">
         <div className="p-6 border-b border-slate-800 flex items-center gap-3">
           <Shield className="w-8 h-8 text-primary-500" />
-          <h1 className="text-xl font-bold tracking-tight text-white leading-tight">Fake Review<br/>System</h1>
+          <h1 className="text-xl font-bold tracking-tight text-white leading-tight">Fake Review<br/>Detection Agent</h1>
         </div>
 
         <nav className="flex-1 p-4 space-y-1">
